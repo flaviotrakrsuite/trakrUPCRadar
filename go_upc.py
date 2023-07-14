@@ -20,7 +20,6 @@ upc_value = ""
 category_key = "Category"
 category_value = ""
 description_key = "Description"
-description_error_key = "Description"
 description_value = ""
 additional_attributes_key = "Additional Attributes"
 additional_attributes_value = ""
@@ -30,7 +29,8 @@ img_key = "IMG"
 img_value = ""
 status_key = "Status"
 status_value = "OK"
-msg = ""
+description_error_key = "Description Error"
+description_error_value = ""
 
 proxy = random.choice(proxies)
 
@@ -41,24 +41,29 @@ proxies = {
 
 url = 'https://go-upc.com/search?q='+upc
 
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+}
+
 try:
+    session = requests.Session()
     if useProxy == 1:
-        response = requests.get(url, proxies=proxies)
+        response = session.get(url, headers=headers, proxies=proxies)
     else:
-        response = requests.get(url)
+        response = session.get(url, headers=headers)
     response.raise_for_status()
 except requests.exceptions.Timeout:
-    msg = "Error: Waiting time exhausted when making the request."
+    description_error_value = "Error: Waiting time exhausted when making the request."
 except requests.exceptions.SSLError as e:
-    msg = ("Error de SSL:", e)
+    description_error_value = ("Error de SSL:", e)
 except requests.exceptions.RequestException as e:
-    msg = ("Failed to make the request:", e)
+    description_error_value = ("Failed to make the request:", e)
    
-if msg != "":
+if description_error_value != "":
     status_value="ERROR"
     data = {
         status_key: status_value,
-        description_error_key: msg
+        description_error_key: description_error_value
     }
     json_response = json.dumps(data, default=str)
     print(json_response)
