@@ -2,44 +2,16 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import random
+import sys
 
-proxies = [
-    '117.69.232.171:8089',
-    '183.164.243.213:8089',
-    '36.6.145.119:8089',
-    '47.96.143.117:80',
-    '39.175.92.35:30001',
-    '111.20.217.178:9091',
-    '200.110.169.203:999',
-    '167.250.29.235:3128',
-    '45.133.168.157:8080',
-    '103.167.134.31:80',
-    '72.52.91.126:3128',
-    '138.91.159.185:80',
-    '177.10.201.171:9812',
-    '103.178.12.166:3030',
-    '103.155.54.26:83',
-    '5.189.144.84:3128',
-    '45.180.16.210:9292',
-    '41.203.83.66:8080',
-    '45.5.92.94:8137',
-    '45.167.90.69:999',
-    '146.83.128.23:80',
-    '64.225.8.191:9999',
-    '112.111.1.217:4430',
-    '201.71.2.115:999',
-    '81.169.204.107:8080',
-    '43.255.113.232:84',
-    '75.89.101.63:80',
-    '103.127.38.46:7070',
-    '177.12.220.252:8080',
-    '187.141.184.235:8080',
-    '138.121.161.82:8290',
-    '124.131.219.94:9091',
-    '186.167.67.36:8080',
-    '24.152.40.49:8080',
-    '116.68.170.115:8019'
-]
+with open("proxies.txt") as file:
+    proxies = [line.strip() for line in file.readlines()]
+
+upc = sys.argv[1]  
+useProxy = sys.argv[2]
+
+if len(upc) < 12:
+    upc = upc.zfill(12) 
 
 ean_key = "EAN"
 ean_value = ""
@@ -48,6 +20,7 @@ upc_value = ""
 category_key = "Category"
 category_value = ""
 description_key = "Description"
+description_error_key = "Description"
 description_value = ""
 additional_attributes_key = "Additional Attributes"
 additional_attributes_value = ""
@@ -55,6 +28,9 @@ name_key = "Name"
 name_value = ""
 img_key = "IMG"
 img_value = ""
+status_key = "Status"
+status_value = "OK"
+msg = ""
 
 proxy = random.choice(proxies)
 
@@ -63,10 +39,31 @@ proxies = {
     'https': f'http://{proxy}'
 }
 
-url = 'https://go-upc.com/search?q=05530011001'
-#url = 'https://go-upc.com/search?q=052000014778'
+url = 'https://go-upc.com/search?q='+upc
 
-response = requests.get(url, proxies=proxies)
+try:
+    if useProxy == 1:
+        response = requests.get(url, proxies=proxies)
+    else:
+        response = requests.get(url)
+    response.raise_for_status()
+except requests.exceptions.Timeout:
+    msg = "Error: Waiting time exhausted when making the request."
+except requests.exceptions.SSLError as e:
+    msg = ("Error de SSL:", e)
+except requests.exceptions.RequestException as e:
+    msg = ("Failed to make the request:", e)
+   
+if msg != "":
+    status_value="ERROR"
+    data = {
+        status_key: status_value,
+        description_error_key: msg
+    }
+    json_response = json.dumps(data, default=str)
+    print(json_response)
+    exit()
+
 content = response.text
 
 soup = BeautifulSoup(content, 'html.parser')
@@ -90,8 +87,7 @@ for label, value in data.items():
         upc_value = value
 
     if label == category_key:
-        category_value = value
-    #print(label + ':', value)    
+        category_value = value  
 
 product_container_left = soup.find('div', class_='left-column')
 product_container_right = soup.find('div', class_='right-column')
@@ -117,6 +113,7 @@ for div in description_section:
                 attributes_dict[span_text] = other_text
 
 data = {
+    status_key: status_value,
     name_key: name_value,
     ean_key: ean_value,
     upc_key: upc_value,
